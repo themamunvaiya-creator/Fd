@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Mita AI - Voice Personal Assistant</title>
+    <meta name="description" content="বাংলা ভয়েস নিয়ন্ত্রিত এআই পার্সোনাল অ্যাসিস্ট্যান্ট ও স্মার্ট ফোন ম্যানেজার (সহকারী ও গার্লফ্রেন্ড মুড সহ)" />
+    <meta property="og:title" content="Mita AI - Voice Personal Assistant" />
+    <meta property="og:description" content="বাংলা ভয়েস নিয়ন্ত্রিত এআই পার্সোনাল অ্যাসিস্ট্যান্ট ও স্মার্ট ফোন ম্যানেজার (সহকারী ও গার্লফ্রেন্ড মুড সহ)" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mita AI" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <script>
+      (function() {
+        // 1. Intercept console.error to filter benign Vite HMR WebSocket closed notice in Cloud Run dev server
+        const _origConsoleError = console.error;
+        console.error = function(...args) {
+          const text = args.map(function(a) {
+            return (a && a.message) || (typeof a === 'object' ? JSON.stringify(a) : String(a));
+          }).join(' ');
+          if (text.includes('[vite]') || text.includes('WebSocket closed without opened')) {
+            return;
+          }
+          _origConsoleError.apply(console, args);
+        };
+
+        // 2. Intercept unhandled errors
+        window.addEventListener('error', function(e) {
+          if (e.message && (e.message.includes('WebSocket') || e.message.includes('vite'))) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          const reason = String(e.reason || '');
+          if (reason.includes('WebSocket') || reason.includes('vite')) {
+            e.preventDefault();
+          }
+        });
+
+        // 3. Stub the vite-hmr WebSocket so it opens cleanly without closing abruptly
+        const _OrigWebSocket = window.WebSocket;
+        if (_OrigWebSocket) {
+          window.WebSocket = function(url, protocols) {
+            if (protocols === 'vite-hmr' || (typeof url === 'string' && (url.includes('vite') || url.includes('ais-dev')))) {
+              var fakeWs = new EventTarget();
+              fakeWs.readyState = 1; // WebSocket.OPEN
+              fakeWs.url = url;
+              fakeWs.protocol = protocols || '';
+              fakeWs.send = function() {};
+              fakeWs.close = function() {};
+              setTimeout(function() {
+                fakeWs.dispatchEvent(new Event('open'));
+              }, 10);
+              return fakeWs;
+            }
+            return new _OrigWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = _OrigWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased font-['Hind_Siliguri',sans-serif] overflow-x-hidden selection:bg-pink-500 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,6 @@
+{
+  "name": "Mita AI - Voice Personal Assistant",
+  "description": "বাংলা ভয়েস নিয়ন্ত্রিত এআই পার্সোনাল অ্যাসিস্ট্যান্ট ও স্মার্ট ফোন ম্যানেজার (সহকারী ও গার্লফ্রেন্ড মুড সহ)",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
