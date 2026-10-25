@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import https from 'https';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -385,10 +386,80 @@ ${userNotes}
   }
 });
 
-// Gemini TTS Endpoint
-app.post('/api/tts', (req, res) => {
-  // Always return useBrowserSpeech so client uses sweet high-quality local Web Speech synthesis
-  return res.json({ useBrowserSpeech: true });
+// Female Voice TTS Audio Stream Endpoint (100% Authentic Bengali Female Speech)
+app.get('/api/tts-audio', async (req, res) => {
+  try {
+    const rawText = (req.query.text as string) || '';
+    // Strip markdown, asterisks, brackets, and emojis
+    const cleanText = rawText
+      .replace(/[*_#`~[\]()]/g, '')
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+      .trim();
+
+    if (!cleanText) {
+      return res.status(400).send('No text provided');
+    }
+
+    // Split text into chunks under 170 characters
+    const sentences = cleanText.split(/([।?!,\n]+)/);
+    const chunks: string[] = [];
+    let current = '';
+
+    for (const part of sentences) {
+      if ((current + part).length < 170) {
+        current += part;
+      } else {
+        if (current.trim()) chunks.push(current.trim());
+        current = part;
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
+
+    // Sequential or parallel fetch of chunks
+    const fetchChunk = (chunkText: string): Promise<Buffer> => {
+      return new Promise((resolve) => {
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=bn&q=${encodeURIComponent(chunkText)}`;
+        https.get(
+          url,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://translate.google.com/',
+            },
+          },
+          (response) => {
+            if (response.statusCode !== 200) {
+              return resolve(Buffer.alloc(0));
+            }
+            const data: Buffer[] = [];
+            response.on('data', (d) => data.push(d));
+            response.on('end', () => resolve(Buffer.concat(data)));
+          }
+        ).on('error', () => resolve(Buffer.alloc(0)));
+      });
+    };
+
+    const buffers: Buffer[] = [];
+    for (const chunk of chunks) {
+      const buf = await fetchChunk(chunk);
+      if (buf.length > 0) buffers.push(buf);
+    }
+
+    const finalAudio = Buffer.concat(buffers);
+
+    if (finalAudio.length === 0) {
+      return res.status(502).send('Audio generation failed');
+    }
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': finalAudio.length,
+      'Cache-Control': 'public, max-age=86400',
+    });
+    return res.end(finalAudio);
+  } catch (err: any) {
+    return res.status(500).send('TTS error');
+  }
 });
 
 // Setup Vite for development or static build for production

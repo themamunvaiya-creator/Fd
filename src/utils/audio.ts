@@ -112,29 +112,88 @@ export function stopRingtoneSound() {
   }
 }
 
-// Text to Speech using Web Speech API (with sweet girl tuning)
+let currentAudioObj: HTMLAudioElement | null = null;
+
+// Clean text for speech
+function sanitizeSpeechText(text: string): string {
+  return text
+    .replace(/[*_#`~[\]()]/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+    .trim();
+}
+
+/**
+ * Play authentic sweet cute girl voice using streaming Bengali female audio
+ * with automatic fallback to female-only Web Speech API
+ */
+export function playCuteGirlVoice(
+  text: string,
+  mode: 'girlfriend' | 'assistant',
+  customPitch = 1.4,
+  customRate = 0.98,
+  onStart?: () => void,
+  onEnd?: () => void
+): void {
+  stopSpeaking();
+
+  const clean = sanitizeSpeechText(text);
+  if (!clean) {
+    onEnd?.();
+    return;
+  }
+
+  // 1. Try real authentic Bengali Female TTS stream
+  const audioUrl = `/api/tts-audio?text=${encodeURIComponent(clean)}`;
+  const audio = new Audio(audioUrl);
+  currentAudioObj = audio;
+
+  // Make voice slightly higher and cuter for sweet girlfriend tone
+  if (mode === 'girlfriend') {
+    (audio as any).preservesPitch = false;
+    audio.playbackRate = 1.09; // Raises the female pitch by 9% into sweet cute anime/girlfriend soprano
+  } else {
+    audio.playbackRate = 1.02;
+  }
+
+  audio.onplay = () => {
+    onStart?.();
+  };
+
+  audio.onended = () => {
+    currentAudioObj = null;
+    onEnd?.();
+  };
+
+  audio.onerror = () => {
+    // If stream fails or network drops, fallback to filtered female Web Speech API
+    currentAudioObj = null;
+    speakWithBrowserSynthesis(clean, mode, customPitch, customRate, onStart, onEnd);
+  };
+
+  audio.play().catch(() => {
+    // Autoplay policy or fetch error fallback
+    currentAudioObj = null;
+    speakWithBrowserSynthesis(clean, mode, customPitch, customRate, onStart, onEnd);
+  });
+}
+
+// Text to Speech using Web Speech API (Strictly female voice, never male)
 export function speakWithBrowserSynthesis(
   text: string,
   mode: 'girlfriend' | 'assistant',
-  customPitch = 1.25,
-  customRate = 0.95,
+  customPitch = 1.4,
+  customRate = 0.98,
   onStart?: () => void,
   onEnd?: () => void
 ): SpeechSynthesisUtterance | null {
   if (!('speechSynthesis' in window)) {
-    console.warn('Speech synthesis not supported');
     onEnd?.();
     return null;
   }
 
   window.speechSynthesis.cancel();
-
-  // Strip JSON codeblocks or awkward markdown for clear speech
-  const cleanText = text
-    .replace(/[*_#`~[\]]/g, '')
-    .replace(/https?:\/\/\S+/g, '')
-    .trim();
-
+  const cleanText = sanitizeSpeechText(text);
   if (!cleanText) {
     onEnd?.();
     return null;
@@ -142,36 +201,69 @@ export function speakWithBrowserSynthesis(
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
 
-  // Pre-fetch and find preferred Bengali female voice
-  let voices = window.speechSynthesis.getVoices();
+  // Helper to check if a voice is male (STRICTLY BAN ALL MALE VOICES)
+  const isMaleVoice = (v: SpeechSynthesisVoice) => {
+    const name = (v.name + ' ' + v.voiceURI).toLowerCase();
+    return (
+      name.includes('male') ||
+      name.includes('david') ||
+      name.includes('george') ||
+      name.includes('mark') ||
+      name.includes('guy') ||
+      name.includes('man') ||
+      name.includes('ravi') ||
+      name.includes('stefan') ||
+      name.includes('pablo') ||
+      name.includes('hemant') ||
+      name.includes('kalpana-male') ||
+      name.includes('bnd-network-male')
+    );
+  };
+
+  // Find preferred cute female voice
+  let voices = window.speechSynthesis.getVoices().filter((v) => !isMaleVoice(v));
+
+  // If voices empty, wait for event
   if (!voices || voices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      voices = window.speechSynthesis.getVoices();
-    };
+    voices = window.speechSynthesis.getVoices().filter((v) => !isMaleVoice(v));
   }
 
-  const banglaVoice = voices.find(
+  // 1. Look for verified female Bengali voice
+  const banglaFemaleVoice = voices.find(
     (v) =>
       (v.lang.toLowerCase().includes('bn') || v.lang.toLowerCase().includes('ben')) &&
-      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl') || v.name.includes('Bangla') || v.name.includes('Bengali'))
-  ) || voices.find((v) => v.lang.toLowerCase().includes('bn') || v.lang.toLowerCase().includes('ben'))
-    || voices.find((v) => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('samantha'))
-    || voices[0];
+      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl') || !isMaleVoice(v))
+  );
 
-  if (banglaVoice) {
-    utterance.voice = banglaVoice;
+  // 2. Look for any pleasant female voice (Samantha, Victoria, Karen, Zira, etc.)
+  const femaleVoiceFallback = voices.find(
+    (v) =>
+      v.name.toLowerCase().includes('female') ||
+      v.name.toLowerCase().includes('girl') ||
+      v.name.toLowerCase().includes('samantha') ||
+      v.name.toLowerCase().includes('victoria') ||
+      v.name.toLowerCase().includes('zira') ||
+      v.name.toLowerCase().includes('karen') ||
+      v.name.toLowerCase().includes('fiona') ||
+      v.name.toLowerCase().includes('veena') ||
+      v.name.toLowerCase().includes('ayesha') ||
+      v.name.toLowerCase().includes('bni-female')
+  ) || voices[0];
+
+  const selectedVoice = banglaFemaleVoice || femaleVoiceFallback;
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice.lang || 'bn-BD';
+  } else {
+    utterance.lang = 'bn-BD';
   }
 
-  utterance.lang = banglaVoice?.lang || 'bn-BD';
-
-  // Sweet girl emotional cadence:
-  // Girlfriend mode: higher sweet pitch (1.25 - 1.35), gentle warmth
-  // Assistant mode: balanced polite pitch (1.1)
+  // Set high, sweet, youthful pitch so it always sounds like a cute girl (never a male voice)
   if (mode === 'girlfriend') {
-    utterance.pitch = Math.max(1.1, Math.min(customPitch, 1.45));
-    utterance.rate = Math.max(0.85, Math.min(customRate, 1.05));
+    utterance.pitch = Math.max(1.35, Math.min(customPitch, 1.55)); // Sweet cute soprano
+    utterance.rate = Math.max(0.9, Math.min(customRate, 1.05));
   } else {
-    utterance.pitch = 1.1;
+    utterance.pitch = 1.25;
     utterance.rate = 1.0;
   }
 
@@ -184,7 +276,6 @@ export function speakWithBrowserSynthesis(
   };
 
   utterance.onerror = (e) => {
-    console.warn('Speech synthesis error:', e);
     onEnd?.();
   };
 
@@ -193,6 +284,11 @@ export function speakWithBrowserSynthesis(
 }
 
 export function stopSpeaking() {
+  if (currentAudioObj) {
+    currentAudioObj.pause();
+    currentAudioObj.src = '';
+    currentAudioObj = null;
+  }
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }

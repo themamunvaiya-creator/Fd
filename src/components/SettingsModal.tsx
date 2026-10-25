@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Settings, User, Sliders, Volume2, Mic, X, Battery, Heart, Shield } from 'lucide-react';
 import { UserProfile, AppMode } from '../types';
+import { playCuteGirlVoice } from '../utils/audio';
 
 interface SettingsModalProps {
   profile: UserProfile;
@@ -116,6 +117,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="w-full accent-cyan-500 cursor-pointer"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                playCuteGirlVoice(
+                  `বাবু, আমি তোমার আদরের মিষ্টি মিতা! কেমন লাগছে আমার কিউট মেয়ের কন্ঠ?`,
+                  mode,
+                  profile.voicePitch,
+                  profile.voiceRate
+                )
+              }
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold flex items-center justify-center gap-1.5 shadow-md shadow-pink-600/30 transition-all active:scale-95"
+            >
+              <Volume2 size={14} />
+              <span>কিউট মেয়ের কন্ঠ শুনুন (টেস্ট)</span>
+            </button>
           </div>
 
           {/* Smart Features */}

@@ -48,7 +48,7 @@ import { NotificationDrawer } from './components/NotificationDrawer';
 import { NotesModal } from './components/NotesModal';
 import { SettingsModal } from './components/SettingsModal';
 import { InstallAppModal } from './components/InstallAppModal';
-import { playChimeSound, speakWithBrowserSynthesis, stopSpeaking } from './utils/audio';
+import { playChimeSound, playCuteGirlVoice, speakWithBrowserSynthesis, stopSpeaking } from './utils/audio';
 
 export default function App() {
   // App Mode: 'girlfriend' | 'assistant'
@@ -104,8 +104,8 @@ export default function App() {
         { id: '3', name: 'তন্ময়', relation: 'বন্ধু', phone: '01811-000333', avatar: '👦' },
         { id: '4', name: 'অফিস বস', relation: 'বস', phone: '01911-000444', avatar: '👔' },
       ],
-      voicePitch: 1.25,
-      voiceRate: 0.95,
+      voicePitch: 1.4,
+      voiceRate: 0.98,
       alwaysListening: false,
       autoReadNotifications: true,
     };
@@ -239,9 +239,9 @@ export default function App() {
   const speakText = async (text: string, currentMode = mode) => {
     if (isMuted) return;
 
-    // Use zero-latency, quota-free browser Web Speech synthesis with sweet female tuning
+    // Play authentic Bengali female voice with sweet cute girl modulation
     setOrbState('speaking');
-    speakWithBrowserSynthesis(
+    playCuteGirlVoice(
       text,
       currentMode,
       userProfile.voicePitch,
